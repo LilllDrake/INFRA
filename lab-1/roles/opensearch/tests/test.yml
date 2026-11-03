@@ -1,0 +1,40 @@
+
+- name: Применить роль opensearch
+  hosts: opensearch
+  become: true
+  roles:
+    - role: "{{ playbook_dir }}/.."     
+
+- name: Проверить результат роли
+  hosts: opensearch
+  become: true
+  tasks:
+    - name: Собрать состояние сервисов на ВМ
+      ansible.builtin.service_facts:
+
+    - name: Сервисы запущены и включены в автозапуск
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['opensearch.service'].state == 'running'
+          - ansible_facts.services['opensearch.service'].status == 'enabled'
+          - ansible_facts.services['opensearch-dashboards.service'].state == 'running'
+          - ansible_facts.services['opensearch-dashboards.service'].status == 'enabled'
+        fail_msg: "Сервис не запущен или не включён в автозапуск"
+
+    - name: Запросить информацию об OpenSearch
+      ansible.builtin.uri:
+        url: "https://localhost:9200"
+        user: admin
+        password: "{{ opensearch_admin_password }}"
+        force_basic_auth: true
+        validate_certs: false
+      register: os_info
+
+    - name: Установлена версия из задания
+      ansible.builtin.assert:
+        that:
+          - os_info.json.version.number == "3.8.0"
+        fail_msg: "Версия OpenSearch не 3.8.0"
+
+
+

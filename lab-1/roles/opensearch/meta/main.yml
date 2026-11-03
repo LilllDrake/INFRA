@@ -1,0 +1,23 @@
+#SPDX-License-Identifier: MIT-0
+galaxy_info:
+  author: LilllDrake
+  description: OpenSearch lab 1
+  company: Please take me on as an intern
+
+  license: MIT
+
+  min_ansible_version: 2.15
+
+  galaxy_tags: []
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble 
+
+dependencies: []
+
+
+
+
+

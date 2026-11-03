@@ -1,0 +1,4 @@
+#SPDX-License-Identifier: MIT-0
+[opensearch]
+os-node ansible_host=170.168.151.74 ansible_user=root
+

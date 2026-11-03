@@ -1,0 +1,133 @@
+#SPDX-License-Identifier: MIT-0
+# tasks file for roles/opensearch
+
+- name: Создать папку для ключей apt
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Скачать GPG-ключ репозитория OpenSearch
+  ansible.builtin.get_url:
+    url: "{{ opensearch_gpg_key_url }}"
+    dest: "{{ opensearch_gpg_key_path }}"
+    mode: "0644"           
+
+- name: Подключить APT-репозиторий OpenSearch
+  ansible.builtin.deb822_repository:
+    name: opensearch-3.x                      # имя файла в /etc/apt/sources.list.d/
+    types: deb                                # готовые пакеты, не исходники
+    uris: "{{ opensearch_repo_url }}"         # адрес репозитория
+    suites: stable
+    components: main
+    signed_by: "{{ opensearch_gpg_key_path }}"  # чем проверять подпись
+    state: present
+
+- name: Установить OpenSearch нужной версии
+  ansible.builtin.apt:
+    name: "opensearch={{ opensearch_version }}"
+    state: present
+    update_cache: true
+  environment:
+    OPENSEARCH_INITIAL_ADMIN_PASSWORD: "{{ opensearch_admin_password }}"
+
+- name: Поднять лимит vm.max_map_count для OpenSearch
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: "{{ opensearch_vm_max_map_count }}"
+    sysctl_file: /etc/sysctl.d/99-opensearch.conf   # своя настройка отдельным файлом
+    state: present
+    reload: true  
+
+- name: Создать каталог для дополнительных настроек сервиса OpenSearch
+  ansible.builtin.file:
+    path: /etc/systemd/system/opensearch.service.d
+    state: directory
+    mode: "0755"
+
+- name: Увеличить время на запуск OpenSearch
+  ansible.builtin.copy:
+    src: opensearch-timeout.conf         
+    dest: /etc/systemd/system/opensearch.service.d/timeout.conf
+    mode: "0644"
+  notify:
+    - reload systemd        
+    - restart opensearch
+
+- name: Положить конфиг OpenSearch из шаблона
+  ansible.builtin.template:
+    src: opensearch.yml.j2                               
+    dest: "{{ opensearch_path_config }}/opensearch.yml"   
+    owner: opensearch
+    group: opensearch
+    mode: "0640"            
+  notify: restart opensearch   # перезапуск, только если файл изменился
+
+- name: Положить настройки heap для Java
+  ansible.builtin.template:
+    src: heap.options.j2
+    dest: "{{ opensearch_path_config }}/jvm.options.d/heap.options"
+    owner: opensearch
+    group: opensearch
+    mode: "0640"
+  notify: restart opensearch
+
+- name: Включить автозапуск и запустить OpenSearch
+  ansible.builtin.systemd_service:
+    name: opensearch
+    enabled: true   # стартует после ребута
+    state: started
+
+- name: Применить отложенные перезапуски до проверки
+  ansible.builtin.meta: flush_handlers   
+
+- name: Дождаться, пока OpenSearch ответит через API
+  ansible.builtin.uri:
+    url: "https://localhost:{{ opensearch_http_port }}/_cluster/health"
+    user: admin
+    password: "{{ opensearch_admin_password }}"
+    force_basic_auth: true    # сразу отправить логин и пароль
+    validate_certs: false     # сертификат самоподписанный (как -k у curl)
+  register: opensearch_health # сохранить ответ в переменную
+  until: opensearch_health.json is defined and opensearch_health.json.status in ['green', 'yellow']
+  retries: "{{ opensearch_healthcheck_retries }}"   # сколько попыток
+  delay: "{{ opensearch_healthcheck_delay }}"       # пауза между попытками, сек
+  changed_when: false         # проверка ничего не меняет на ВМ - ответ всегда ок
+
+- name: Подключить APT-репозиторий OpenSearch Dashboards
+  ansible.builtin.deb822_repository:
+    name: opensearch-dashboards-3.x
+    types: deb
+    uris: "{{ opensearch_dashboards_repo_url }}"
+    suites: stable
+    components: main
+    signed_by: "{{ opensearch_gpg_key_path }}"   # пакеты подписаны тем же ключом
+    state: present
+
+- name: Установить OpenSearch Dashboards нужной версии
+  ansible.builtin.apt:
+    name: "opensearch-dashboards={{ opensearch_dashboards_version }}"
+    state: present
+    update_cache: true
+
+- name: Включить автозапуск и запустить Dashboards
+  ansible.builtin.systemd_service:
+    name: opensearch-dashboards
+    enabled: true          # стартует после ребута
+    state: started
+    daemon_reload: true    # пакет добавил новый сервис, systemd должен его увидеть
+
+- name: Положить конфиг Dashboards из шаблона
+  ansible.builtin.template:
+    src: opensearch_dashboards.yml.j2
+    dest: "{{ opensearch_dashboards_path_config }}/opensearch_dashboards.yml"
+    owner: root
+    group: opensearch-dashboards
+    mode: "0640"    
+  notify: restart dashboards
+
+
+
+
+
+

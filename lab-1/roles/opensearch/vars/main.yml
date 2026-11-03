@@ -1,0 +1,20 @@
+#SPDX-License-Identifier: MIT-0
+# vars file for roles/opensearch
+
+opensearch_gpg_key_url: https://artifacts.opensearch.org/publickeys/opensearch-release.pgp
+opensearch_gpg_key_path: /etc/apt/keyrings/opensearch.asc
+opensearch_repo_url: https://artifacts.opensearch.org/releases/bundle/opensearch/3.x/apt
+
+opensearch_dashboards_repo_url: https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/3.x/apt
+opensearch_dashboards_version: "{{ opensearch_version }}"   # версия Dashboards должна совпадать с OpenSearch
+
+opensearch_path_data: /var/lib/opensearch
+opensearch_path_logs: /var/log/opensearch
+opensearch_path_config: /etc/opensearch
+
+opensearch_vm_max_map_count: 262144
+
+opensearch_dashboards_path_config: /etc/opensearch-dashboards
+
+
+

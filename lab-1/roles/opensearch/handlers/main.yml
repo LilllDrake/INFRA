@@ -1,0 +1,16 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for roles/opensearch
+- name: reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true  
+
+- name: restart opensearch         
+  ansible.builtin.systemd_service:
+    name: opensearch
+    state: restarted 
+
+- name: restart dashboards
+  ansible.builtin.systemd_service:
+    name: opensearch-dashboards  
+    state: restarted

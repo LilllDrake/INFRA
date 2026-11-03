@@ -1,0 +1,22 @@
+#SPDX-License-Identifier: MIT-0
+# defaults file for roles/opensearch
+opensearch_version: "3.8.0"
+
+opensearch_cluster_name: lab_1_opensearch
+opensearch_node_name: node_1_opensearch
+
+opensearch_heap_size: "1g"
+
+opensearch_network_host: "127.0.0.1"
+opensearch_http_port: 9200
+
+opensearch_action_destructive_requires_name: true
+
+opensearch_healthcheck_retries: 30
+opensearch_healthcheck_delay: 10
+
+opensearch_dashboards_network_host: "127.0.0.1"
+opensearch_dashboards_server_port: 5601
+opensearch_dashboards_server_name: lab_1_opensearch_dashboards
+opensearch_dashboards_username: kibanaserver
+
