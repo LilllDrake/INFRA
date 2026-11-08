@@ -1,0 +1,76 @@
+- name: Создать папку для ключей apt
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Скачать GPG-ключ репозитория OpenSearch
+  ansible.builtin.get_url:
+    url: "{{ opensearch_gpg_key_url }}"
+    dest: "{{ opensearch_gpg_key_path }}"
+    mode: "0644"           
+
+- name: Подключить APT-репозиторий OpenSearch
+  ansible.builtin.deb822_repository:
+    name: opensearch-3.x                      # имя файла в /etc/apt/sources.list.d/
+    types: deb                                # готовые пакеты, не исходники
+    uris: "{{ opensearch_repo_url }}"         # адрес репозитория
+    suites: stable
+    components: main
+    signed_by: "{{ opensearch_gpg_key_path }}"  # чем проверять подпись
+    state: present
+
+- name: Установить OpenSearch нужной версии
+  ansible.builtin.apt:
+    name: "opensearch={{ opensearch_version }}"
+    state: present
+    update_cache: true
+  environment:
+    OPENSEARCH_INITIAL_ADMIN_PASSWORD: "{{ opensearch_admin_password }}"
+
+- name: Поднять лимит vm.max_map_count для OpenSearch
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: "{{ opensearch_vm_max_map_count }}"
+    sysctl_file: /etc/sysctl.d/99-opensearch.conf   # своя настройка отдельным файлом
+    state: present
+    reload: true  
+
+- name: Создать каталог для дополнительных настроек сервиса OpenSearch
+  ansible.builtin.file:
+    path: /etc/systemd/system/opensearch.service.d
+    state: directory
+    mode: "0755"
+
+- name: Увеличить время на запуск OpenSearch
+  ansible.builtin.copy:
+    src: opensearch-timeout.conf         
+    dest: /etc/systemd/system/opensearch.service.d/timeout.conf
+    mode: "0644"
+  notify:
+    - reload systemd        
+    - restart opensearch
+
+- name: Положить конфиг OpenSearch из шаблона
+  ansible.builtin.template:
+    src: opensearch.yml.j2                               
+    dest: "{{ opensearch_path_config }}/opensearch.yml"   
+    owner: opensearch
+    group: opensearch
+    mode: "0640"            
+  notify: restart opensearch   # перезапуск, только если файл изменился
+
+- name: Положить настройки heap для Java
+  ansible.builtin.template:
+    src: heap.options.j2
+    dest: "{{ opensearch_path_config }}/jvm.options.d/heap.options"
+    owner: opensearch
+    group: opensearch
+    mode: "0640"
+  notify: restart opensearch
+
+- name: Включить автозапуск и запустить OpenSearch
+  ansible.builtin.systemd_service:
+    name: opensearch
+    enabled: true   # стартует после ребута
+    state: started
