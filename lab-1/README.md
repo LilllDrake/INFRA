@@ -614,3 +614,21 @@ ______________
 ![img33](images/image33.png)
 
 вооооот
+
+________
+## Исправления
+
+Задачи из tasks.yml я распределила по трем файлам: `opensearch.yml`, `verify.yml `, `dashboards.yml`. Первый файл будет содержать установку и настройку OpenSearch, второй будет проверять готовность через API, а третий будет устанавливать и настраивать Dashboards. При этом в файле `dashboards.yml` был изменен порядок задач, конфиг из шаблона будет класться до запуска сервиса. 
+
+В самом main.yml больше нет задач, он только будет подключать файлы через `import_tasks`
+
+```yml
+- name: Установить и настроить OpenSearch
+  ansible.builtin.import_tasks: opensearch.yml
+
+- name: Проверить готовность OpenSearch
+  ansible.builtin.import_tasks: verify.yml
+
+- name: Установить и настроить Dashboards
+  ansible.builtin.import_tasks: dashboards.yml
+```
